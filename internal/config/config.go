@@ -11,6 +11,7 @@ import (
 // Config is the root configuration structure
 type Config struct {
 	Database DatabaseConfig         `yaml:"database"`
+	Redis    RedisConfig            `yaml:"redis"`
 	Chains   map[string]ChainConfig `yaml:"chains"`
 	Server   ServerConfig           `yaml:"server"`
 	Logging  LoggingConfig          `yaml:"logging"`
@@ -39,6 +40,16 @@ func (d DatabaseConfig) DSN() string {
 	)
 }
 
+// RedisConfig holds Redis connection settings
+type RedisConfig struct {
+	Addr          string        `yaml:"addr"`
+	Password      string        `yaml:"password"`
+	DB            int           `yaml:"db"`
+	KeyPrefix     string        `yaml:"key_prefix"`
+	CacheTTL      time.Duration `yaml:"cache_ttl"`
+	ShortCacheTTL time.Duration `yaml:"short_cache_ttl"`
+}
+
 // ChainConfig holds configuration for a single blockchain
 type ChainConfig struct {
 	Enabled           bool          `yaml:"enabled"`
@@ -48,6 +59,7 @@ type ChainConfig struct {
 	ConfirmationDepth int           `yaml:"confirmation_depth"`
 	StartHeight       uint64        `yaml:"start_height"`
 	MaxReorgDepth     int           `yaml:"max_reorg_depth"` // P1 alert if exceeded
+	EnableMempool     bool          `yaml:"enable_mempool"`
 
 	// ETH-specific
 	LogBatchSize    int              `yaml:"log_batch_size"`    // Max blocks per eth_getLogs call

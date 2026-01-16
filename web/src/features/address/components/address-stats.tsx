@@ -1,8 +1,6 @@
-"use client";
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Transaction } from "@/types";
-import { ArrowDownLeft, ArrowUpRight, History } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, History, Wallet } from "lucide-react";
 
 import { formatUnits } from "ethers";
 
@@ -13,35 +11,39 @@ interface AddressStatsProps {
 }
 
 import QRCode from "react-qr-code";
-import { getAddressBalance } from "@/lib/api";
+import { getAddressStats } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
-import { Wallet } from "lucide-react";
 
-export function AddressStats({ transactions, address, chain }: AddressStatsProps) {
+export function AddressStats({ address, chain }: AddressStatsProps) {
     // Simple stats calculation from loaded txs
-    const totalTxs = transactions.length;
-    const sentTxs = transactions.filter(tx => tx.FromAddr?.toLowerCase() === address.toLowerCase()).length;
-    const receivedTxs = transactions.filter(tx => tx.ToAddr?.toLowerCase() === address.toLowerCase()).length;
+    // These are no longer used as stats come from API
+    // const totalTxs = transactions.length;
+    // const sentTxs = transactions.filter(tx => tx.FromAddr?.toLowerCase() === address.toLowerCase()).length;
+    // const receivedTxs = transactions.filter(tx => tx.ToAddr?.toLowerCase() === address.toLowerCase()).length;
 
     // Fetch Balance
-    const { data: balanceData } = useQuery({
-        queryKey: ["balance", chain, address],
-        queryFn: () => getAddressBalance(chain, address),
+    const { data: stats } = useQuery({
+        queryKey: ["address-stats", chain, address],
+        queryFn: () => getAddressStats(chain, address),
         refetchInterval: 10000,
     });
 
-    const formatBalance = (val: string) => {
-        if (!val) return "0";
+    // Format helpers
+    const formatValue = (val: string | undefined) => {
+        if (!val || val === "0") return "0";
         try {
             if (chain === "eth") {
                 return parseFloat(formatUnits(val, 18)).toFixed(4);
             } else {
                 return (parseInt(val) / 100000000).toFixed(8);
             }
-        } catch {
+        } catch (e) {
+            console.error("Error formatting value:", e);
             return val;
         }
     }
+
+    const currency = chain === "eth" ? "ETH" : "BTC";
 
     return (
         <div className="grid gap-4 md:grid-cols-4">
@@ -57,53 +59,42 @@ export function AddressStats({ transactions, address, chain }: AddressStatsProps
             </Card>
 
             <div className="md:col-span-3 grid gap-4 grid-cols-1 md:grid-cols-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Balance</CardTitle>
-                        <Wallet className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{balanceData ? formatBalance(balanceData.balance) : "..."}</div>
-                        <p className="text-xs text-muted-foreground">
-                            {chain.toUpperCase()}
-                        </p>
-                    </CardContent>
+                <Card className="p-4 flex items-center justify-between">
+                    <div className="flex flex-col gap-1">
+                        <span className="text-sm text-muted-foreground">Current Balance</span>
+                        <span className="text-2xl font-bold font-mono tracking-tight text-primary">
+                            {formatValue(stats?.Balance)} <span className="text-sm text-muted-foreground">{currency}</span>
+                        </span>
+                    </div>
+                    <Wallet className="h-8 w-8 text-primary/20" />
                 </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
+
+                <Card className="p-4 flex items-center justify-between">
+                    <div className="flex flex-col gap-1">
+                        <span className="text-sm text-muted-foreground">Total Received</span>
+                        <span className="text-lg font-bold font-mono text-green-500">
+                            +{formatValue(stats?.TotalReceived)}
+                        </span>
+                    </div>
+                    <ArrowDownLeft className="h-4 w-4 text-green-500" />
+                </Card>
+
+                <Card className="p-4 flex items-center justify-between">
+                    <div className="flex flex-col gap-1">
+                        <span className="text-sm text-muted-foreground">Total Sent</span>
+                        <span className="text-lg font-bold font-mono text-destructive">
+                            -{formatValue(stats?.TotalSent)}
+                        </span>
+                    </div>
+                    <ArrowUpRight className="h-4 w-4 text-destructive" />
+                </Card>
+
+                <Card className="p-4 flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Total Txs</span>
                         <History className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{totalTxs}+</div>
-                        <p className="text-xs text-muted-foreground">
-                            Known interactions
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Sent</CardTitle>
-                        <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{sentTxs}</div>
-                        <p className="text-xs text-muted-foreground">
-                            Outgoing transfers
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Received</CardTitle>
-                        <ArrowDownLeft className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{receivedTxs}</div>
-                        <p className="text-xs text-muted-foreground">
-                            Incoming transfers
-                        </p>
-                    </CardContent>
+                    </div>
+                    <span className="text-2xl font-bold font-mono">{stats?.TxCount || 0}</span>
                 </Card>
             </div>
         </div>

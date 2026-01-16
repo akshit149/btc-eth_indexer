@@ -2,9 +2,10 @@
 
 import { AddressStats } from "@/features/address/components/address-stats";
 import { AddressTransactionList } from "@/features/address/components/address-transaction-list";
-import { getAddressTxs } from "@/lib/api";
+import { TokenList } from "@/features/address/components/token-list";
+import { getAddressTxs, getContract } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, FileCode } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,13 @@ interface AddressPageProps {
 export default function AddressPage({ params }: AddressPageProps) {
     // Validate chain param
     const chain = params.chain === "eth" ? "eth" : "btc";
+
+    const { data: contract } = useQuery({
+        queryKey: ["contract", chain, params.address],
+        queryFn: () => getContract(chain, params.address),
+        enabled: chain === "eth", // Only fetch for ETH
+        retry: false,
+    });
 
     const { data: txResponse, isLoading, isError, error } = useQuery({
         queryKey: ["address-txs", chain, params.address],
@@ -65,11 +73,30 @@ export default function AddressPage({ params }: AddressPageProps) {
                             {chain}
                         </Badge>
                         <span className="font-mono text-sm text-muted-foreground break-all">{params.address}</span>
+                        {contract && (
+                            <Badge variant="outline" className="border-blue-500 text-blue-500 gap-1">
+                                <FileCode className="w-3 h-3" />
+                                CONTRACT
+                            </Badge>
+                        )}
                     </div>
+                    {contract && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                            Current Creator: <Link href={`/address/${chain}/${contract.CreatorAddr}`} className="text-primary hover:underline font-mono">{contract.CreatorAddr.slice(0, 10)}...</Link>
+                            <span className="mx-2">•</span>
+                            Tx: <Link href={`/tx/${chain}/${contract.TxHash}`} className="text-primary hover:underline font-mono">{contract.TxHash.slice(0, 10)}...</Link>
+                        </div>
+                    )}
                 </div>
             </div>
 
             <AddressStats transactions={transactions} address={params.address} chain={chain} />
+
+            {chain === "eth" && (
+                <div className="mb-6">
+                    <TokenList chain={chain} address={params.address} />
+                </div>
+            )}
 
             <AddressTransactionList transactions={transactions} chain={chain} address={params.address} />
         </div>

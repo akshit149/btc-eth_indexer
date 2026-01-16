@@ -62,6 +62,8 @@ func (s *Server) setupRouter() {
 	r.Get("/status", s.handleStatus)
 	r.Handle("/metrics", promhttp.Handler())
 
+	r.Get("/search", s.handleSearch) // New endpoint
+
 	// Authenticated endpoints
 	r.Group(func(r chi.Router) {
 		r.Use(s.auth.Handler) // Apply Rate Limit & API Key check
@@ -73,17 +75,22 @@ func (s *Server) setupRouter() {
 		// Transactions
 		r.Get("/tx/{chain}/{hash}", s.handleGetTx)
 		r.Get("/address/{chain}/{address}/txs", s.handleGetAddressTxs)
-		r.Get("/blocks/{chain}/{id}/txs", s.handleGetBlockTxs)         // New endpoint
-		r.Get("/txs/latest", s.handleGetLatestTxs)                     // New endpoint
-		r.Get("/balance/{chain}/{address}", s.handleGetAddressBalance) // New endpoint
+		r.Get("/blocks/{chain}/{id}/txs", s.handleGetBlockTxs)                  // New endpoint
+		r.Get("/txs/latest", s.handleGetLatestTxs)                              // New endpoint
+		r.Get("/balance/{chain}/{address}", s.handleGetAddressBalance)          // New endpoint
+		r.Get("/contract/{chain}/{address}", s.handleGetContract)               // New endpoint
+		r.Get("/tokens/{chain}/{address}/balances", s.handleGetTokenBalances)   // New endpoint
+		r.Get("/tokens/{chain}/{address}/transfers", s.handleGetTokenTransfers) // New endpoint
+		r.Get("/txs/pending/{chain}", s.handleGetPendingTxs)                    // New endpoint
 
 		// Events
 		r.Get("/contract/{chain}/{address}/events", s.handleGetContractEvents)
 		r.Get("/events", s.handleGetEvents)
 
 		// Stats & Ranges
-		r.Get("/stats/{chain}", s.handleGetStats)              // New endpoint
-		r.Get("/blocks/{chain}/range", s.handleGetBlocksRange) // New endpoint
+		r.Get("/stats/{chain}", s.handleGetStats)                          // New endpoint
+		r.Get("/stats/address/{chain}/{address}", s.handleGetAddressStats) // New endpoint
+		r.Get("/blocks/{chain}/range", s.handleGetBlocksRange)             // New endpoint
 	})
 
 	s.router = r
@@ -321,6 +328,27 @@ func (s *Server) handleGetBlocksRange(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, http.StatusOK, blocks)
 }
 
+func (s *Server) handleGetAddressStats(w http.ResponseWriter, r *http.Request) {
+	chain := chi.URLParam(r, "chain")
+	address := chi.URLParam(r, "address")
+
+	stats, err := s.service.GetAddressStats(r.Context(), types.ChainID(chain), address)
+	if err != nil {
+		internalError(w, err)
+		return
+	}
+	if stats == nil {
+		// Return 404 or empty stats? Let's return 404 if not found in ANY history,
+		// but typically an address always exists conceptually.
+		// If DB returns nil (no rows), it means we've never seen it.
+		// But for stats, let's return 404.
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+
+	jsonResponse(w, http.StatusOK, stats)
+}
+
 func (s *Server) handleGetAddressTxs(w http.ResponseWriter, r *http.Request) {
 	chain := chi.URLParam(r, "chain")
 	address := chi.URLParam(r, "address")
@@ -364,6 +392,23 @@ func (s *Server) handleGetAddressBalance(w http.ResponseWriter, r *http.Request)
 		"balance": balance,
 		"chain":   chain,
 	})
+}
+
+func (s *Server) handleGetContract(w http.ResponseWriter, r *http.Request) {
+	chain := chi.URLParam(r, "chain")
+	address := chi.URLParam(r, "address")
+
+	contract, err := s.service.GetContract(r.Context(), types.ChainID(chain), address)
+	if err != nil {
+		internalError(w, err)
+		return
+	}
+	if contract == nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+
+	jsonResponse(w, http.StatusOK, contract)
 }
 
 func (s *Server) handleGetContractEvents(w http.ResponseWriter, r *http.Request) {
@@ -451,4 +496,78 @@ func jsonResponse(w http.ResponseWriter, code int, data interface{}) {
 func internalError(w http.ResponseWriter, err error) {
 	fmt.Printf("Internal Server Error: %v\n", err)
 	http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+}
+
+func (s *Server) handleGetTokenBalances(w http.ResponseWriter, r *http.Request) {
+	chain := chi.URLParam(r, "chain")
+	address := chi.URLParam(r, "address")
+
+	balances, err := s.service.GetTokenBalances(r.Context(), types.ChainID(chain), address)
+	if err != nil {
+		internalError(w, err)
+		return
+	}
+
+	jsonResponse(w, http.StatusOK, balances)
+}
+
+func (s *Server) handleGetTokenTransfers(w http.ResponseWriter, r *http.Request) {
+	chain := chi.URLParam(r, "chain")
+	address := chi.URLParam(r, "address")
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+
+	limit := 20
+	if limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil {
+			limit = l
+		}
+	}
+	offset := 0
+	if offsetStr != "" {
+		if o, err := strconv.Atoi(offsetStr); err == nil {
+			offset = o
+		}
+	}
+
+	transfers, err := s.service.GetTokenTransfers(r.Context(), types.ChainID(chain), address, limit, offset)
+	if err != nil {
+		internalError(w, err)
+		return
+	}
+
+	jsonResponse(w, http.StatusOK, transfers)
+}
+
+func (s *Server) handleGetPendingTxs(w http.ResponseWriter, r *http.Request) {
+	chain := chi.URLParam(r, "chain")
+
+	txs, err := s.service.GetPendingTransactions(r.Context(), types.ChainID(chain))
+	if err != nil {
+		internalError(w, err)
+		return
+	}
+
+	jsonResponse(w, http.StatusOK, txs)
+}
+
+func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query().Get("q")
+	if len(q) < 2 {
+		http.Error(w, "query too short", http.StatusBadRequest)
+		return
+	}
+
+	res, err := s.service.Search(r.Context(), q)
+	if err != nil {
+		internalError(w, err)
+		return
+	}
+
+	if res == nil {
+		jsonResponse(w, http.StatusOK, map[string]interface{}{"found": false})
+		return
+	}
+
+	jsonResponse(w, http.StatusOK, res)
 }

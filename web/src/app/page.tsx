@@ -4,6 +4,7 @@ import { RecentBlocks } from "@/features/landing/components/recent-blocks";
 import { RecentTransactions } from "@/features/landing/components/recent-transactions";
 import { NetworkCard } from "@/features/landing/components/network-card";
 import { StatsTicker } from "@/features/landing/components/stats-ticker";
+import { PendingTransactions } from "@/features/landing/components/pending-transactions";
 import { getLatestBlock } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -61,6 +62,16 @@ export default function Home() {
               lag={ethLag}
             />
           )}
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-1 rounded-full bg-gradient-to-b from-primary/50 to-primary/20" />
+          <h2 className="text-lg font-semibold tracking-tight">Mempool Activity</h2>
+        </div>
+        <div className="grid gap-6 md:grid-cols-1">
+          <PendingTransactions />
         </div>
       </section>
 

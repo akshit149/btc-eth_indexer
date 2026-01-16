@@ -159,9 +159,20 @@ func (c *Coordinator) poll(ctx context.Context) error {
 	// Check if poller supports events (type assertion pattern)
 	if eventPoller, ok := c.poller.(poller.EventCapablePoller); ok {
 		var err error
-		blocks, txs, events, err = eventPoller.PollWithEvents(ctx, lastHeight)
+		var tokens []types.Token
+		var transfers []types.TokenTransfer
+		blocks, txs, events, _, tokens, transfers, err = eventPoller.PollWithEvents(ctx, lastHeight)
 		if err != nil {
 			return fmt.Errorf("polling blocks with events: %w", err)
+		}
+
+		// Write with tokens
+		if len(events) > 0 || len(tokens) > 0 || len(transfers) > 0 {
+			if err := c.storage.WriteBlocksWithEvents(ctx, c.chainID, blocks, txs, events, nil, tokens, transfers); err != nil {
+				return fmt.Errorf("writing blocks with events: %w", err)
+			}
+			// Skip standard write
+			blocks = nil // mark as done
 		}
 	} else {
 		var err error
@@ -226,14 +237,23 @@ func (c *Coordinator) poll(ctx context.Context) error {
 		return ctx.Err()
 	}
 
-	// Write blocks atomically with checkpoint
-	if len(events) > 0 {
-		if err := c.storage.WriteBlocksWithEvents(ctx, c.chainID, blocks, txs, events); err != nil {
-			return fmt.Errorf("writing blocks with events: %w", err)
-		}
-	} else {
-		if err := c.storage.WriteBlocks(ctx, c.chainID, blocks, txs); err != nil {
-			return fmt.Errorf("writing blocks: %w", err)
+	// Write blocks atomically with checkpoint (only if not already written)
+	if len(blocks) > 0 {
+		if len(events) > 0 {
+			// This path should ideally cover the case where type assertion failed but we somehow have events?
+			// Actually, if we entered the first block `if eventPoller ...`, we already wrote.
+			// The only case blocks is NOT nil here is if type assertion failed (standard poller) OR if `len(events/tokens/txs) == 0`.
+
+			// If we are here and have events, it means we didn't write above.
+			// BUT, the logic above sets blocks=nil if it wrote.
+
+			if err := c.storage.WriteBlocksWithEvents(ctx, c.chainID, blocks, txs, events, nil, nil, nil); err != nil {
+				return fmt.Errorf("writing blocks with events: %w", err)
+			}
+		} else {
+			if err := c.storage.WriteBlocks(ctx, c.chainID, blocks, txs); err != nil {
+				return fmt.Errorf("writing blocks: %w", err)
+			}
 		}
 	}
 

@@ -26,7 +26,7 @@ func New(rpcURL string, batchSize int) *Poller {
 		rpcURL:    rpcURL,
 		batchSize: batchSize,
 		client: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: 60 * time.Second,
 		},
 	}
 }

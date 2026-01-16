@@ -105,3 +105,35 @@ export const getAddressBalance = async (chain: "btc" | "eth", address: string): 
     const { data } = await api.get(`/balance/${chain}/${address}`);
     return data;
 };
+
+export const getContract = async (chain: "btc" | "eth", address: string): Promise<import("@/types").Contract> => {
+    const { data } = await api.get(`/contract/${chain}/${address}`);
+    return data;
+};
+
+export const getAddressStats = async (chain: "btc" | "eth", address: string): Promise<import("@/types").AddressStats> => {
+    const { data } = await api.get(`/stats/address/${chain}/${address}`);
+    return data;
+};
+
+export const getTokenBalances = async (chain: string, address: string) => {
+    const { data } = await api.get(`/tokens/${chain}/${address}/balances`);
+    return data;
+};
+
+export const getTokenTransfers = async (chain: string, address: string, limit = 20, offset = 0) => {
+    const { data } = await api.get(`/tokens/${chain}/${address}/transfers`, {
+        params: { limit, offset }
+    });
+    return data;
+};
+
+export const getPendingTxs = async (chain: "btc" | "eth"): Promise<Transaction[]> => {
+    const { data } = await api.get(`/txs/pending/${chain}`);
+    return data;
+};
+
+export const search = async (q: string) => {
+    const { data } = await api.get(`/search`, { params: { q } });
+    return data;
+};

@@ -22,16 +22,7 @@ type ChainPoller interface {
 	GetChainTip(ctx context.Context) (uint64, error)
 }
 
-// EventCapablePoller extends ChainPoller for chains that support event/log fetching
-// Use type assertion to detect support: if p, ok := poller.(EventCapablePoller); ok { ... }
+// EventCapablePoller is an interface for pollers that can fetch events
 type EventCapablePoller interface {
-	ChainPoller
-
-	// PollWithEvents fetches blocks, transactions, AND events
-	PollWithEvents(ctx context.Context, lastHeight uint64) (
-		[]types.Block,
-		[]types.Transaction,
-		[]types.Event,
-		error,
-	)
+	PollWithEvents(ctx context.Context, lastHeight uint64) ([]types.Block, []types.Transaction, []types.Event, []types.Contract, []types.Token, []types.TokenTransfer, error)
 }

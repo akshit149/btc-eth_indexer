@@ -23,7 +23,12 @@ type Store interface {
 	GetNetworkStats(ctx context.Context, chainID types.ChainID) (*types.NetworkStats, error)
 	GetBlocksRange(ctx context.Context, chainID types.ChainID, fromHeight, toHeight uint64) ([]*types.BlockSummary, error)
 	GetEvents(ctx context.Context, filter EventFilter) ([]*types.Event, string, error)
+	GetContract(ctx context.Context, chainID types.ChainID, address string) (*types.Contract, error)
+	GetAddressStats(ctx context.Context, chainID types.ChainID, address string) (*types.AddressStats, error)
+	GetTokenBalances(ctx context.Context, chainID types.ChainID, address string) ([]types.TokenBalance, error)
+	GetTokenTransfers(ctx context.Context, chainID types.ChainID, address string, limit, offset int) ([]types.TokenTransfer, error)
 	GetAddressBalance(ctx context.Context, chainID types.ChainID, address string) (string, error)
+	SearchTokens(ctx context.Context, query string) ([]types.Token, error)
 	Close() error
 }
 
@@ -603,4 +608,135 @@ func (s *PostgresStore) GetAddressBalance(ctx context.Context, chainID types.Cha
 		return "0", nil
 	}
 	return balance, nil
+}
+
+// GetContract returns a contract by address
+func (s *PostgresStore) GetContract(ctx context.Context, chainID types.ChainID, address string) (*types.Contract, error) {
+	var c types.Contract
+	err := s.db.QueryRowContext(ctx, `
+		SELECT chain_id, address, creator_addr, tx_hash, block_height, created_at
+		FROM contracts
+		WHERE chain_id = $1 AND address = $2
+	`, string(chainID), address).Scan(&c.ChainID, &c.Address, &c.CreatorAddr, &c.TxHash, &c.BlockHeight, &c.CreatedAt)
+
+	if err == sql.ErrNoRows {
+		return nil, nil // Not found
+	}
+	if err != nil {
+		return nil, fmt.Errorf("querying contract: %w", err)
+	}
+
+	return &c, nil
+}
+
+// GetAddressStats returns analytics for an address
+func (s *PostgresStore) GetAddressStats(ctx context.Context, chainID types.ChainID, address string) (*types.AddressStats, error) {
+	var stats types.AddressStats
+	err := s.db.QueryRowContext(ctx, `
+		SELECT chain_id, address, balance, total_received, total_sent, tx_count, first_seen_height, last_seen_height, last_updated_at
+		FROM address_stats
+		WHERE chain_id = $1 AND address = $2
+	`, string(chainID), address).Scan(
+		&stats.ChainID, &stats.Address, &stats.Balance, &stats.TotalReceived, &stats.TotalSent,
+		&stats.TxCount, &stats.FirstSeenHeight, &stats.LastSeenHeight, &stats.LastUpdatedAt,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, nil // Not found
+	}
+	if err != nil {
+		return nil, fmt.Errorf("querying address stats: %w", err)
+	}
+
+	return &stats, nil
+}
+
+func (s *PostgresStore) GetTokenBalances(ctx context.Context, chainID types.ChainID, address string) ([]types.TokenBalance, error) {
+	query := `
+		SELECT chain_id, address, token_address, balance, last_updated_at
+		FROM token_balances
+		WHERE chain_id = $1 AND address = $2 AND balance > 0
+		ORDER BY balance DESC
+	`
+	rows, err := s.db.QueryContext(ctx, query, chainID, address)
+	if err != nil {
+		return nil, fmt.Errorf("querying token balances: %w", err)
+	}
+	defer rows.Close()
+
+	var balances []types.TokenBalance
+	for rows.Next() {
+		var b types.TokenBalance
+		if err := rows.Scan(&b.ChainID, &b.Address, &b.TokenAddress, &b.Balance, &b.LastUpdated); err != nil {
+			return nil, fmt.Errorf("scanning token balance: %w", err)
+		}
+		balances = append(balances, b)
+	}
+	return balances, nil
+}
+
+func (s *PostgresStore) GetTokenTransfers(ctx context.Context, chainID types.ChainID, address string, limit, offset int) ([]types.TokenTransfer, error) {
+	query := `
+		SELECT chain_id, tx_hash, log_index, token_address, from_addr, to_addr, amount, block_height, block_hash, timestamp
+		FROM token_transfers
+		WHERE chain_id = $1 AND (from_addr = $2 OR to_addr = $2)
+		ORDER BY block_height DESC, log_index DESC
+		LIMIT $3 OFFSET $4
+	`
+	rows, err := s.db.QueryContext(ctx, query, chainID, address, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("querying token transfers: %w", err)
+	}
+	defer rows.Close()
+
+	var transfers []types.TokenTransfer
+	for rows.Next() {
+		var t types.TokenTransfer
+		if err := rows.Scan(
+			&t.ChainID, &t.TxHash, &t.LogIndex, &t.TokenAddress,
+			&t.FromAddr, &t.ToAddr, &t.Amount,
+			&t.BlockHeight, &t.BlockHash, &t.Timestamp,
+		); err != nil {
+			return nil, fmt.Errorf("scanning token transfer: %w", err)
+		}
+		transfers = append(transfers, t)
+	}
+	return transfers, nil
+}
+
+func (s *PostgresStore) SearchTokens(ctx context.Context, q string) ([]types.Token, error) {
+	// Use ILIKE for partial match, relying on pg_trgm index for performance if pattern starts with %
+	// Actually pg_trgm handles %pattern% well.
+	match := "%" + q + "%"
+	query := `
+		SELECT chain_id, address, name, symbol, decimals, first_seen_height, last_seen_height
+		FROM tokens
+		WHERE name ILIKE $1 OR symbol ILIKE $1
+		LIMIT 10
+	`
+	// TODO: Add ordering by similarity if simple ILIKE is not enough, but ILIKE is standard for fuzzy start.
+	// For better ranking: ORDER BY similarity(name, $2) DESC
+
+	rows, err := s.db.QueryContext(ctx, query, match)
+	if err != nil {
+		return nil, fmt.Errorf("searching tokens: %w", err)
+	}
+	defer rows.Close()
+
+	var tokens []types.Token
+	for rows.Next() {
+		var t types.Token
+		// CreatedAt missing in scan if not in query, but types.Token has it.
+		// Schema likely has created_at not null default now?
+		// Checking schema... migrations/004_add_token_tables.up.sql (implied).
+		// types.Token struct has CreatedAt. Let's skip scanning it if simpler or add it.
+		// I'll scan basic fields.
+		if err := rows.Scan(
+			&t.ChainID, &t.Address, &t.Name, &t.Symbol, &t.Decimals, &t.FirstSeenHeight, &t.LastSeenHeight,
+		); err != nil {
+			return nil, fmt.Errorf("scanning token: %w", err)
+		}
+		tokens = append(tokens, t)
+	}
+	return tokens, nil
 }

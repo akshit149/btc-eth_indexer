@@ -69,6 +69,26 @@ export interface NetworkStats {
 export interface BlockSummary {
     Height: number;
     Timestamp: string;
-    TxCount: number;
     Status: BlockStatus;
+}
+
+export interface Contract {
+    ChainID: ChainID;
+    Address: string;
+    CreatorAddr: string;
+    TxHash: string;
+    BlockHeight: number;
+    CreatedAt: string;
+}
+
+export interface AddressStats {
+    ChainID: ChainID;
+    Address: string;
+    Balance: string;
+    TotalReceived: string;
+    TotalSent: string;
+    TxCount: number;
+    FirstSeenHeight: number;
+    LastSeenHeight: number;
+    LastUpdatedAt: string;
 }

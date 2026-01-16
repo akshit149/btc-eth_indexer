@@ -10,6 +10,8 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/internal/indexer/internal/api/cache"
+	apiconfig "github.com/internal/indexer/internal/api/config"
 	"github.com/internal/indexer/internal/config"
 	"github.com/internal/indexer/internal/coordinator"
 	"github.com/internal/indexer/internal/poller"
@@ -79,6 +81,30 @@ func run(configPath string, logger *slog.Logger) error {
 	// Create HTTP server
 	httpServer := server.New(cfg.Server.HealthPort, cfg.Server.MetricsPort, logger)
 
+	// Initialize Redis Cache
+	redisCfg := apiconfig.RedisConfig{
+		Addr:          cfg.Redis.Addr,
+		Password:      cfg.Redis.Password,
+		DB:            cfg.Redis.DB,
+		KeyPrefix:     cfg.Redis.KeyPrefix,
+		CacheTTL:      cfg.Redis.CacheTTL,
+		ShortCacheTTL: cfg.Redis.ShortCacheTTL,
+	}
+	redisCache, err := cache.NewRedisCache(redisCfg)
+	if err != nil {
+		// Log warning but don't fail if redis is optional or just for mempool?
+		// But mempool depends on it.
+		// If Redis is configured, error should be fatal.
+		if cfg.Redis.Addr != "" {
+			logger.Error("failed to connect to redis", "error", err)
+			return err
+		}
+		logger.Warn("redis not configured, mempool will be disabled")
+	} else {
+		logger.Info("connected to redis")
+		defer redisCache.Close()
+	}
+
 	// Create coordinators for enabled chains
 	var coordinators []*coordinator.Coordinator
 
@@ -139,6 +165,14 @@ func run(configPath string, logger *slog.Logger) error {
 				contracts,
 				logger,
 			)
+
+			// Mempool Poller (Separate from main poller)
+			if chainCfg.EnableMempool && redisCache != nil {
+				mp := eth.NewMempoolPoller(chainCfg.RPCURL, redisCache, logger)
+				go mp.Start()
+				defer mp.Stop()
+				logger.Info("started mempool poller", "chain", chainName)
+			}
 
 		default:
 			logger.Warn("unknown chain, skipping", "chain", chainName)

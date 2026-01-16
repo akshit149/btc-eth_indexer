@@ -23,6 +23,7 @@ type ServerConfig struct {
 	ReadTimeout     time.Duration `yaml:"read_timeout"`
 	WriteTimeout    time.Duration `yaml:"write_timeout"`
 	ShutdownTimeout time.Duration `yaml:"shutdown_timeout"`
+	EnableMempool   bool          `yaml:"enable_mempool"`
 }
 
 // DatabaseConfig holds PostgreSQL connection settings

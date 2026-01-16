@@ -1,6 +1,9 @@
 package types
 
-import "time"
+import (
+	"math/big"
+	"time"
+)
 
 // ChainID identifies a blockchain network
 type ChainID string
@@ -63,6 +66,16 @@ type Event struct {
 	DecodeFailed bool // True if ABI decode failed
 }
 
+// Contract represents an Ethereum smart contract
+type Contract struct {
+	ChainID     ChainID
+	Address     string
+	CreatorAddr string
+	TxHash      string
+	BlockHeight uint64
+	CreatedAt   time.Time
+}
+
 // Checkpoint represents indexing progress for a chain
 type Checkpoint struct {
 	ChainID    ChainID
@@ -87,4 +100,61 @@ type BlockSummary struct {
 	Timestamp time.Time
 	TxCount   int
 	Status    BlockStatus
+}
+
+// AddressStatsDiff tracks changes to address statistics during block ingestion
+type AddressStatsDiff struct {
+	BalanceDelta   *big.Int
+	TotalReceived  *big.Int
+	TotalSent      *big.Int
+	TxCount        int
+	LastSeenHeight int64
+}
+
+// AddressStats represents the persisted address intelligence data
+type AddressStats struct {
+	ChainID         ChainID
+	Address         string
+	Balance         string
+	TotalReceived   string
+	TotalSent       string
+	TxCount         int
+	FirstSeenHeight int64
+	LastSeenHeight  int64     `json:"last_seen_height"`
+	LastUpdatedAt   time.Time `json:"last_updated_at"`
+}
+
+// Token represents an ERC20/ERC721 token
+type Token struct {
+	ChainID         ChainID   `json:"chain_id"`
+	Address         string    `json:"address"`
+	Name            string    `json:"name"`
+	Symbol          string    `json:"symbol"`
+	Decimals        int       `json:"decimals"`
+	FirstSeenHeight uint64    `json:"first_seen_height"`
+	LastSeenHeight  uint64    `json:"last_seen_height"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
+// TokenTransfer represents a token movement event
+type TokenTransfer struct {
+	ChainID      ChainID   `json:"chain_id"`
+	TxHash       string    `json:"tx_hash"`
+	LogIndex     uint      `json:"log_index"`
+	TokenAddress string    `json:"token_address"`
+	FromAddr     string    `json:"from_addr"`
+	ToAddr       string    `json:"to_addr"`
+	Amount       string    `json:"amount"` // Numeric string
+	BlockHeight  uint64    `json:"block_height"`
+	BlockHash    string    `json:"block_hash"`
+	Timestamp    time.Time `json:"timestamp"`
+}
+
+// TokenBalance represents the current balance of a token for an address
+type TokenBalance struct {
+	ChainID      ChainID   `json:"chain_id"`
+	Address      string    `json:"address"`
+	TokenAddress string    `json:"token_address"`
+	Balance      string    `json:"balance"` // Numeric string
+	LastUpdated  time.Time `json:"last_updated"`
 }

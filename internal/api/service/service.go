@@ -12,6 +12,11 @@ import (
 	"github.com/internal/indexer/pkg/types"
 )
 
+type SearchResult struct {
+	Type string      `json:"type"` // "block", "tx", "address", "token_list"
+	Data interface{} `json:"data"`
+}
+
 // Service defines the business logic including caching
 type Service struct {
 	store query.Store
@@ -302,4 +307,140 @@ func (s *Service) GetAddressBalance(ctx context.Context, chainID types.ChainID, 
 
 	s.cache.Set(ctx, key, balance, 5*time.Second)
 	return balance, nil
+}
+
+// GetContract returns a contract by address
+func (s *Service) GetContract(ctx context.Context, chainID types.ChainID, address string) (*types.Contract, error) {
+	// Cache Key: contract:chain:address
+	// immutable data, long TTL
+	key := fmt.Sprintf("contract:%s:%s", chainID, address)
+	var contract types.Contract
+	found, err := s.cache.Get(ctx, key, &contract)
+	if err != nil {
+		// Log error but continue
+	}
+	if found {
+		return &contract, nil
+	}
+
+	c, err := s.store.GetContract(ctx, chainID, address)
+	if err != nil {
+		return nil, err
+	}
+	if c != nil {
+		s.cache.Set(ctx, key, c, 24*time.Hour)
+	}
+
+	return c, nil
+}
+
+// GetAddressStats returns analytics for an address
+func (s *Service) GetAddressStats(ctx context.Context, chainID types.ChainID, address string) (*types.AddressStats, error) {
+	cacheKey := fmt.Sprintf("stats:%s:%s", chainID, address)
+
+	// Check cache
+	var stats types.AddressStats
+	found, err := s.cache.Get(ctx, cacheKey, &stats)
+	if err == nil && found {
+		return &stats, nil
+	}
+
+	st, err := s.store.GetAddressStats(ctx, chainID, address)
+	if err != nil {
+		return nil, fmt.Errorf("getting address stats: %w", err)
+	}
+
+	if st != nil {
+		// Cache for 30 seconds (dynamic data)
+		s.cache.Set(ctx, cacheKey, st, 30*time.Second)
+	}
+
+	return st, nil
+}
+
+func (s *Service) GetTokenBalances(ctx context.Context, chainID types.ChainID, address string) ([]types.TokenBalance, error) {
+	return s.store.GetTokenBalances(ctx, chainID, address)
+}
+
+func (s *Service) GetTokenTransfers(ctx context.Context, chainID types.ChainID, address string, limit, offset int) ([]types.TokenTransfer, error) {
+	return s.store.GetTokenTransfers(ctx, chainID, address, limit, offset)
+}
+
+// GetPendingTransactions returns simplified pending txs from mempool
+func (s *Service) GetPendingTransactions(ctx context.Context, chainID types.ChainID) ([]*types.Transaction, error) {
+	key := fmt.Sprintf("mempool:%s:latest", chainID)
+
+	// internal struct matching MempoolPoller storage
+	type RPCTransaction struct {
+		Hash  string `json:"hash"`
+		From  string `json:"from"`
+		To    string `json:"to"`
+		Value string `json:"value"`
+	}
+
+	var rpcTxs []RPCTransaction
+	found, err := s.cache.Get(ctx, key, &rpcTxs)
+	if err == nil && found {
+		// Convert to types.Transaction
+		var txs []*types.Transaction
+		for _, rt := range rpcTxs {
+			txs = append(txs, &types.Transaction{
+				ChainID:  chainID,
+				TxHash:   rt.Hash,
+				FromAddr: rt.From,
+				ToAddr:   rt.To,
+				Value:    rt.Value,
+				Status:   types.StatusPending,
+			})
+		}
+		return txs, nil
+	}
+
+	return []*types.Transaction{}, nil
+}
+
+// Search attempts to find any entity matching the query
+func (s *Service) Search(ctx context.Context, q string) (*SearchResult, error) {
+	// 1. Try Block Height (integer)
+	// 2. Try Hash (Block or Tx) - 64 hex chars (66 with 0x)
+	// 3. Try Address - 40 hex chars (42 with 0x) for ETH, or BTC format
+	// 4. Try Token Name/Symbol (Fuzzy)
+
+	// Since we support multiple chains, we might need to search both or assume chain is needed?
+	// The prompt implies a Global Search. Frontend passes "q".
+	// We'll search primarily in ETH/BTC context.
+
+	// Helper to check regex/format? simpler: try fetch.
+
+	// Try Token Search first if it looks like a name (not hex)
+	// But "0x..." is hex.
+
+	if len(q) < 3 {
+		return nil, nil
+	}
+
+	// Token Search logic:
+	// If it doesn't look like a hash/address, it's a keyword.
+	// Hashes usually start with 0x or are long hex.
+	isHex := (len(q) >= 2 && q[:2] == "0x") || (len(q) == 64)
+
+	if !isHex {
+		tokens, err := s.store.SearchTokens(ctx, q)
+		if err == nil && len(tokens) > 0 {
+			return &SearchResult{Type: "token_list", Data: tokens}, nil
+		}
+		// If no tokens found, maybe it's a block height?
+	}
+
+	// Try generic search... for now, strict "Token Search" feature requested.
+	// The frontend handles smart routing for Blocks/Txs/Addresses.
+	// Backend Search is primarily for what frontend CANNOT do deterministically (Fuzzy).
+
+	// So we return Token results.
+	tokens, err := s.store.SearchTokens(ctx, q)
+	if err == nil && len(tokens) > 0 {
+		return &SearchResult{Type: "token_list", Data: tokens}, nil
+	}
+
+	return nil, nil
 }

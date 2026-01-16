@@ -27,6 +27,26 @@ services:
       timeout: 5s
       retries: 5
 
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8082:8081"
+    depends_on:
+      - redis
+
   indexer:
     build: .
     depends_on:
@@ -40,6 +60,7 @@ services:
       - DB_PORT=5432
       - BTC_RPC_URL=${BTC_RPC_URL}
       - ETH_RPC_URL=${ETH_RPC_URL}
+      - REDIS_ADDR=redis:6379
     ports:
       - "8080:8080"
       - "19091:9091"
