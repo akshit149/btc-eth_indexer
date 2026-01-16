@@ -1,0 +1,343 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ========================================
+   2026 Premium UI Design System
+   ======================================== */
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* ========== Glassmorphism System ========== */
+  .glass {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10;
+  }
+
+  .glass-subtle {
+    @apply bg-white/[0.02] backdrop-blur-md border border-white/[0.05];
+  }
+
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50 shadow-lg shadow-black/5;
+    @apply transition-all duration-300 ease-out;
+    @apply hover:border-border/80 hover:shadow-xl hover:shadow-black/10;
+  }
+
+  .glass-elevated {
+    @apply bg-white/[0.08] backdrop-blur-2xl border border-white/15;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+
+  /* ========== Financial Card System ========== */
+  .fintech-card {
+    @apply bg-card/90 backdrop-blur-lg border border-border/40 rounded-xl;
+    @apply transition-all duration-300 ease-out;
+    @apply hover:border-border/60 hover:translate-y-[-2px];
+    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.2);
+  }
+
+  .fintech-card:hover {
+    box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.3);
+  }
+
+  .fintech-header {
+    @apply bg-background/80 backdrop-blur-xl border-b border-border/30;
+    @apply sticky top-0 z-50;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  /* ========== Glow Effects ========== */
+  .glow-btc {
+    box-shadow: 0 0 30px -5px hsl(36 100% 55% / 0.25);
+  }
+
+  .glow-eth {
+    box-shadow: 0 0 30px -5px hsl(226 85% 65% / 0.25);
+  }
+
+  .glow-success {
+    box-shadow: 0 0 20px -3px hsl(145 65% 45% / 0.3);
+  }
+
+  /* ========== Premium Gradients ========== */
+  .gradient-btc {
+    background: linear-gradient(135deg, hsl(36 100% 55%) 0%, hsl(28 90% 48%) 100%);
+  }
+
+  .gradient-eth {
+    background: linear-gradient(135deg, hsl(226 85% 65%) 0%, hsl(260 70% 58%) 100%);
+  }
+
+  .gradient-premium {
+    background: linear-gradient(135deg, hsl(220 20% 12%) 0%, hsl(220 15% 8%) 100%);
+  }
+
+  .gradient-shine {
+    background: linear-gradient(110deg,
+        transparent 25%,
+        rgba(255, 255, 255, 0.05) 50%,
+        transparent 75%);
+    background-size: 200% 100%;
+    animation: shine 3s ease-in-out infinite;
+  }
+
+  /* ========== Animation Utilities ========== */
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  .animate-pulse-subtle {
+    animation: pulse-subtle 2s ease-in-out infinite;
+  }
+
+  .animate-glow-pulse {
+    animation: glow-pulse 2s ease-in-out infinite;
+  }
+
+  .animate-shimmer {
+    animation: shimmer 2s linear infinite;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.05) 50%,
+        transparent 100%);
+    background-size: 200% 100%;
+  }
+
+  /* ========== Micro-interactions ========== */
+  .hover-lift {
+    @apply transition-transform duration-200 ease-out hover:translate-y-[-2px];
+  }
+
+  .hover-scale {
+    @apply transition-transform duration-200 ease-out hover:scale-[1.02];
+  }
+
+  .hover-glow {
+    @apply transition-shadow duration-300 ease-out;
+    @apply hover:shadow-[0_0_20px_-5px_currentColor];
+  }
+
+  .press-effect {
+    @apply transition-transform duration-100 active:scale-[0.98];
+  }
+
+  /* ========== Data Display ========== */
+  .mono-value {
+    @apply font-mono tabular-nums tracking-tight;
+  }
+
+  .data-highlight {
+    @apply px-2 py-0.5 rounded-md bg-muted/50 font-mono text-sm;
+  }
+
+  /* ========== Status Indicators ========== */
+  .status-synced {
+    @apply relative flex items-center gap-1.5;
+  }
+
+  .status-synced::before {
+    content: "";
+    @apply w-2 h-2 rounded-full bg-green-500;
+    @apply animate-pulse-subtle;
+  }
+
+  .status-pending {
+    @apply relative flex items-center gap-1.5;
+  }
+
+  .status-pending::before {
+    content: "";
+    @apply w-2 h-2 rounded-full bg-yellow-500;
+    @apply animate-pulse;
+  }
+}
+
+/* ========== Keyframe Animations ========== */
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes pulse-subtle {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes glow-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 20px -5px currentColor;
+    opacity: 1;
+  }
+
+  50% {
+    box-shadow: 0 0 30px -3px currentColor;
+    opacity: 0.8;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes shine {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@layer base {
+  :root {
+    /* Light mode - Premium Warm */
+    --background: 0 0% 99%;
+    --foreground: 240 10% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 10%;
+    --primary: 240 10% 10%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 10% 10%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 5% 45%;
+    --accent: 240 5% 96%;
+    --accent-foreground: 240 10% 10%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 240 10% 10%;
+    --chart-1: 28 90% 50%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.625rem;
+
+    /* Brand Colors */
+    --btc-primary: 28 90% 50%;
+    --eth-primary: 224 76% 58%;
+    --success: 145 65% 42%;
+    --warning: 40 90% 50%;
+  }
+
+  .dark {
+    /* Deep Premium Dark - 2026 Fintech */
+    --background: 220 20% 4%;
+    --foreground: 0 0% 95%;
+
+    /* Cards - Slightly elevated */
+    --card: 220 18% 7%;
+    --card-foreground: 0 0% 95%;
+
+    /* Popover */
+    --popover: 220 20% 6%;
+    --popover-foreground: 0 0% 95%;
+
+    /* Primary - High contrast */
+    --primary: 0 0% 98%;
+    --primary-foreground: 220 20% 8%;
+
+    /* Secondary - Subtle elevation */
+    --secondary: 220 15% 13%;
+    --secondary-foreground: 0 0% 95%;
+
+    /* Muted - Subdued content */
+    --muted: 220 15% 13%;
+    --muted-foreground: 220 10% 55%;
+
+    /* Accent */
+    --accent: 220 15% 15%;
+    --accent-foreground: 0 0% 95%;
+
+    /* Destructive */
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 98%;
+
+    /* Borders - Very subtle */
+    --border: 220 12% 18%;
+    --input: 220 12% 15%;
+    --ring: 220 70% 60%;
+
+    --radius: 0.625rem;
+
+    /* Brand Colors - Optimized for dark */
+    --btc-primary: 28 95% 52%;
+    --eth-primary: 224 80% 62%;
+    --success: 145 70% 48%;
+    --warning: 40 95% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body {
+    @apply bg-background text-foreground antialiased;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Improved focus states */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Custom scrollbar for dark mode */
+  .dark ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .dark ::-webkit-scrollbar-track {
+    background: hsl(220 20% 6%);
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background: hsl(220 15% 20%);
+    border-radius: 4px;
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: hsl(220 15% 28%);
+  }
+
+  /* Selection color */
+  ::selection {
+    @apply bg-primary/20 text-foreground;
+  }
+}

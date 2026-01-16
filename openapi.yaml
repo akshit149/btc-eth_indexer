@@ -1,0 +1,344 @@
+openapi: 3.0.0
+info:
+  title: Blockchain Query API
+  description: Read-only API for querying indexed blockchain data (BTC + ETH).
+  version: 1.0.0
+servers:
+  - url: http://localhost:8081
+    description: Local development server
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      security: []
+      responses:
+        '200':
+          description: OK
+
+  /status:
+    get:
+      summary: System status
+      security: []
+      responses:
+        '200':
+          description: Running status
+
+  /blocks/latest:
+    get:
+      summary: Get latest block
+      parameters:
+        - in: query
+          name: chain
+          schema:
+            type: string
+            enum: [btc, eth]
+          required: true
+      responses:
+        '200':
+          description: Latest block
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Block'
+
+  /blocks/{chain}/{id}:
+    get:
+      summary: Get block by height or hash
+      parameters:
+        - in: path
+          name: chain
+          schema:
+            type: string
+            enum: [btc, eth]
+          required: true
+        - in: path
+          name: id
+          schema:
+            type: string
+          description: Block height (number) or Info Hash
+          required: true
+      responses:
+        '200':
+          description: Block found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Block'
+        '404':
+          description: Not found
+
+  /blocks/{chain}/{id}/txs:
+    get:
+      summary: List transactions for a block
+      parameters:
+        - in: path
+          name: chain
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: id
+          description: Block ID (Hash or Height)
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: cursor
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Block transactions with pagination
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  block:
+                    $ref: '#/components/schemas/Block'
+                  page:
+                    type: object
+                    properties:
+                      next_cursor: { type: string }
+                      limit: { type: integer }
+                  transactions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transaction'
+
+  /txs/latest:
+    get:
+      summary: Get latest transactions feed
+      parameters:
+        - in: query
+          name: chain
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of latest transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transaction'
+
+  /stats/{chain}:
+    get:
+      summary: Get network statistics
+      parameters:
+        - in: path
+          name: chain
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Network stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NetworkStats'
+
+  /blocks/{chain}/range:
+    get:
+      summary: Get block summaries for a range (charts)
+      parameters:
+        - in: path
+          name: chain
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: from
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: to
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: list of block summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BlockSummary'
+
+  /tx/{chain}/{hash}:
+    get:
+      summary: Get transaction by hash
+      parameters:
+        - in: path
+          name: chain
+          schema:
+            type: string
+            enum: [btc, eth]
+          required: true
+        - in: path
+          name: hash
+          schema:
+            type: string
+          required: true
+      responses:
+        '200':
+          description: Transaction found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+
+  /address/{chain}/{address}/txs:
+    get:
+      summary: Get transactions for address
+      parameters:
+        - in: path
+          name: chain
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: address
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: cursor
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: List of transactions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transaction'
+                  cursor:
+                    type: string
+
+  /events:
+    get:
+      summary: Get events (ETH only)
+      parameters:
+        - in: query
+          name: chain
+          required: true
+          schema:
+            type: string
+            enum: [eth]
+        - in: query
+          name: topic0
+          schema:
+            type: string
+        - in: query
+          name: from_height
+          schema:
+            type: integer
+        - in: query
+          name: to_height
+          schema:
+            type: integer
+        - in: query
+          name: cursor
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of events
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Event'
+                  cursor:
+                    type: string
+
+components:
+  schemas:
+    Block:
+      type: object
+      properties:
+        ChainID: { type: string }
+        Height: { type: integer, format: uint64 }
+        Hash: { type: string }
+        ParentHash: { type: string }
+        Timestamp: { type: string, format: date-time }
+        Status: { type: string }
+    
+    Transaction:
+      type: object
+      properties:
+        ChainID: { type: string }
+        TxHash: { type: string }
+        BlockHeight: { type: integer, format: uint64 }
+        FromAddr: { type: string }
+        ToAddr: { type: string }
+        Value: { type: string }
+        Status: { type: string }
+
+    Event:
+      type: object
+      properties:
+        ChainID: { type: string }
+        TxHash: { type: string }
+        ContractAddr: { type: string }
+        EventName: { type: string }
+        Topics: { type: array, items: { type: string } }
+        Data: { type: string, format: byte }
+
+    NetworkStats:
+      type: object
+      properties:
+        ChainID: { type: string }
+        LatestHeight: { type: integer, format: uint64 }
+        BlocksLastMinute: { type: integer }
+        TxsLastMinute: { type: integer }
+        AvgBlockTime: { type: number, format: float }
+        IndexerLagSeconds: { type: integer, format: int64 }
+
+    BlockSummary:
+      type: object
+      properties:
+        Height: { type: integer, format: uint64 }
+        Timestamp: { type: string, format: date-time }
+        TxCount: { type: integer }
+        Status: { type: string }

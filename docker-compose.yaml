@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: indexer
+      POSTGRES_PASSWORD: indexer
+      POSTGRES_DB: indexer
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U indexer"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.2-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  indexer:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=indexer
+      - DB_USER=indexer
+      - DB_PASSWORD=indexer
+      - DB_PORT=5432
+      - BTC_RPC_URL=${BTC_RPC_URL}
+      - ETH_RPC_URL=${ETH_RPC_URL}
+    ports:
+      - "8080:8080"
+      - "19091:9091"
+    restart: unless-stopped
+
+  query-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - SERVER_PORT=8080
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=indexer
+      - DB_USER=indexer
+      - DB_PASSWORD=indexer
+      - REDIS_ADDR=redis:6379
+      - AUTH_RATELIMIT_REQUESTS=1000
+    ports:
+      - "8081:8080"
+    restart: unless-stopped
+
+  web:
+    build: 
+      context: ./web
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=/api
+    depends_on:
+      - query-api
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
