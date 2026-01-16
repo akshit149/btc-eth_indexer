@@ -221,6 +221,67 @@ func (s *Storage) WriteBlocks(ctx context.Context, chainID types.ChainID, blocks
 			return fmt.Errorf("flushing tx inserts: %w", err)
 		}
 		txStmt.Close()
+
+		// Aggregate Stats
+		statsDiff := make(map[string]*types.AddressStatsDiff)
+		for _, t := range txs {
+			val, _ := new(big.Int).SetString(t.Value, 10)
+			fee, _ := new(big.Int).SetString(t.Fee, 10)
+			if val == nil {
+				val = big.NewInt(0)
+			}
+			if fee == nil {
+				fee = big.NewInt(0)
+			}
+
+			// FROM address: -value -fee, +sent
+			if t.FromAddr != "" {
+				if _, ok := statsDiff[t.FromAddr]; !ok {
+					statsDiff[t.FromAddr] = &types.AddressStatsDiff{}
+				}
+				diff := statsDiff[t.FromAddr]
+				if diff.BalanceDelta == nil {
+					diff.BalanceDelta = big.NewInt(0)
+				}
+				if diff.TotalSent == nil {
+					diff.TotalSent = big.NewInt(0)
+				}
+				diff.BalanceDelta.Sub(diff.BalanceDelta, val)
+				diff.BalanceDelta.Sub(diff.BalanceDelta, fee)
+				diff.TotalSent.Add(diff.TotalSent, val)
+				diff.TxCount++
+				if diff.LastSeenHeight < int64(t.BlockHeight) {
+					diff.LastSeenHeight = int64(t.BlockHeight)
+				}
+			}
+
+			// TO address: +value, +received
+			if t.ToAddr != "" {
+				if _, ok := statsDiff[t.ToAddr]; !ok {
+					statsDiff[t.ToAddr] = &types.AddressStatsDiff{}
+				}
+				diff := statsDiff[t.ToAddr]
+				if diff.BalanceDelta == nil {
+					diff.BalanceDelta = big.NewInt(0)
+				}
+				if diff.TotalReceived == nil {
+					diff.TotalReceived = big.NewInt(0)
+				}
+				diff.BalanceDelta.Add(diff.BalanceDelta, val)
+				diff.TotalReceived.Add(diff.TotalReceived, val)
+				diff.TxCount++
+				if diff.LastSeenHeight < int64(t.BlockHeight) {
+					diff.LastSeenHeight = int64(t.BlockHeight)
+				}
+			}
+		}
+
+		// Update Address Stats
+		if len(statsDiff) > 0 {
+			if err := s.updateAddressStats(ctx, tx, chainID, statsDiff); err != nil {
+				return fmt.Errorf("updating address stats: %w", err)
+			}
+		}
 	}
 
 	// Update or insert checkpoint
@@ -582,13 +643,27 @@ func (s *Storage) updateAddressStats(ctx context.Context, tx *sql.Tx, chainID ty
 	defer stmt.Close()
 
 	for addr, diff := range diffs {
+		// Ensure nil values are treated as 0
+		balanceStr := "0"
+		receivedStr := "0"
+		sentStr := "0"
+		if diff.BalanceDelta != nil {
+			balanceStr = diff.BalanceDelta.String()
+		}
+		if diff.TotalReceived != nil {
+			receivedStr = diff.TotalReceived.String()
+		}
+		if diff.TotalSent != nil {
+			sentStr = diff.TotalSent.String()
+		}
+
 		// Set first_seen to last_seen initially; existing rows won't update first_seen anyway
 		_, err := stmt.ExecContext(ctx,
 			string(chainID),
 			addr,
-			diff.BalanceDelta.String(),
-			diff.TotalReceived.String(),
-			diff.TotalSent.String(),
+			balanceStr,
+			receivedStr,
+			sentStr,
 			diff.TxCount,
 			diff.LastSeenHeight, // first_seen (IF NEW)
 			diff.LastSeenHeight, // last_seen

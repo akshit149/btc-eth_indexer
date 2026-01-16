@@ -102,7 +102,7 @@ function TxTable({ chain }: { chain: "btc" | "eth" }) {
 
 export function RecentTransactions() {
     return (
-        <Card className="fintech-card col-span-4 lg:col-span-3">
+        <Card className="fintech-card">
             <CardHeader className="border-b border-border/50 pb-4">
                 <CardTitle className="flex items-center gap-2 text-xl font-light tracking-tight">
                     Live Transactions

@@ -2,12 +2,15 @@
 
 import { RecentBlocks } from "@/features/landing/components/recent-blocks";
 import { RecentTransactions } from "@/features/landing/components/recent-transactions";
-import { NetworkCard } from "@/features/landing/components/network-card";
-import { StatsTicker } from "@/features/landing/components/stats-ticker";
-import { PendingTransactions } from "@/features/landing/components/pending-transactions";
-import { getLatestBlock } from "@/lib/api";
+import { HeroSection } from "@/features/landing/components/hero-section";
+import { LivePulseSection } from "@/features/landing/components/live-pulse-section";
+import { getLatestBlock, getPendingTxs } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
-import { Skeleton } from "@/components/ui/skeleton";
+import { GlassCard } from "@/components/ui/glass-card";
+import { Flame, ArrowRight } from "lucide-react";
+import { HashText } from "@/components/shared/ui-text/hash-text";
+import { ValueDisplay } from "@/components/shared/value-display";
+import Link from "next/link";
 
 export default function Home() {
   const { data: btcLatest, isLoading: btcLoading } = useQuery({
@@ -22,72 +25,99 @@ export default function Home() {
     refetchInterval: 5000,
   });
 
-  // Calculate lag from block timestamp
-  const btcLag = btcLatest ? Math.max(0, Math.floor((Date.now() - new Date(btcLatest.Timestamp).getTime()) / 1000)) : 0;
-  const ethLag = ethLatest ? Math.max(0, Math.floor((Date.now() - new Date(ethLatest.Timestamp).getTime()) / 1000)) : 0;
+  const { data: pendingTxs } = useQuery({
+    queryKey: ["pending-txs", "eth"],
+    queryFn: () => getPendingTxs("eth"),
+    refetchInterval: 3000,
+  });
+
+  const ethLag = ethLatest
+    ? Math.max(0, Math.floor((Date.now() - new Date(ethLatest.Timestamp).getTime()) / 1000))
+    : 0;
 
   return (
-    <div className="flex-1 space-y-10 p-6 md:p-8 pt-6 min-h-screen">
-      {/* Stats Ticker */}
-      <StatsTicker />
+    <div className="flex-1 min-h-screen">
+      {/* Hero Section */}
+      <HeroSection
+        btcHeight={btcLatest?.Height || 0}
+        ethHeight={ethLatest?.Height || 0}
+        btcLoading={btcLoading}
+        ethLoading={ethLoading}
+      />
 
-      {/* Network Cards Section */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-1 rounded-full bg-gradient-to-b from-btc to-eth" />
-          <h2 className="text-lg font-semibold tracking-tight">Network Status</h2>
-        </div>
+      {/* Main Content */}
+      <div className="space-y-10 p-6 md:p-8 max-w-7xl mx-auto">
+        {/* Live Pulse - Compact Stats */}
+        <LivePulseSection
+          ethTps={15.2}
+          gasPrice={12}
+          mempoolCount={pendingTxs?.length || 0}
+          syncStatus={ethLag < 60 ? "synced" : "syncing"}
+          lagSeconds={ethLag}
+        />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {btcLoading ? (
-            <Skeleton className="h-[260px] w-full rounded-2xl" />
-          ) : (
-            <NetworkCard
-              chain="btc"
-              height={btcLatest?.Height || 0}
-              blocksPerMin={0.17}
-              txsPerMin={45}
-              lag={btcLag}
-            />
-          )}
+        {/* Recent Activity - MOST IMPORTANT - FIRST */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-1 rounded-full bg-gradient-to-b from-eth to-btc" />
+            <h2 className="text-lg font-semibold tracking-tight">Recent Activity</h2>
+          </div>
 
-          {ethLoading ? (
-            <Skeleton className="h-[260px] w-full rounded-2xl" />
-          ) : (
-            <NetworkCard
-              chain="eth"
-              height={ethLatest?.Height || 0}
-              blocksPerMin={5.0}
-              txsPerMin={300}
-              lag={ethLag}
-            />
-          )}
-        </div>
-      </section>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <RecentBlocks />
+            <RecentTransactions />
+          </div>
+        </section>
 
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-1 rounded-full bg-gradient-to-b from-primary/50 to-primary/20" />
-          <h2 className="text-lg font-semibold tracking-tight">Mempool Activity</h2>
-        </div>
-        <div className="grid gap-6 md:grid-cols-1">
-          <PendingTransactions />
-        </div>
-      </section>
+        {/* Mempool - Compact Preview */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Flame className="h-5 w-5 text-warning" />
+              <h2 className="text-lg font-semibold tracking-tight">Pending Transactions</h2>
+              <span className="text-sm text-muted-foreground">
+                ({pendingTxs?.length || 0} in mempool)
+              </span>
+            </div>
+          </div>
 
-      {/* Recent Activity Section */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-1 rounded-full bg-gradient-to-b from-primary/50 to-primary/20" />
-          <h2 className="text-lg font-semibold tracking-tight">Recent Activity</h2>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-          <RecentBlocks />
-          <RecentTransactions />
-        </div>
-      </section>
+          {/* Compact Pending Tx Preview - MAX 5 items, no scroll */}
+          <GlassCard className="p-4">
+            {!pendingTxs || pendingTxs.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground">
+                No pending transactions
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {pendingTxs.slice(0, 5).map((tx) => (
+                  <div
+                    key={tx.TxHash}
+                    className="flex items-center justify-between py-2 px-3 rounded-lg bg-warning/5 border border-warning/10"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-warning animate-pulse" />
+                      <HashText hash={tx.TxHash} startChars={8} endChars={6} className="font-mono text-sm" />
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <ValueDisplay value={tx.Value} chain="eth" showUsd={false} size="sm" />
+                      <Link href={`/tx/eth/${tx.TxHash}`}>
+                        <ArrowRight className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+                {pendingTxs.length > 5 && (
+                  <div className="text-center pt-2 text-sm text-muted-foreground">
+                    +{pendingTxs.length - 5} more pending...
+                  </div>
+                )}
+              </div>
+            )}
+          </GlassCard>
+        </section>
+      </div>
     </div>
   );
 }
+
 

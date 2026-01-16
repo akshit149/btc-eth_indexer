@@ -56,26 +56,42 @@ export function SearchInput({ chain, className }: SearchInputProps) {
             route = `/address/btc/${term}`;
         } else if (isNumber) {
             route = `/block/${chain}/${term}`;
-        } else if (isEthHash) {
-            route = `/block/eth/${term}`;
-        } else if (term.length >= 64) {
-            route = `/block/${chain}/${term}`;
         } else {
-            // Fallback to Backend Search (Fuzzy/Token)
+            // Hash (64/66 chars) or unknown -> Use Backend Search
             try {
                 const res = await apiSearch(term);
-                if (res && res.type === 'token_list' && Array.isArray(res.data) && res.data.length > 0) {
-                    // For now, go to the first result
-                    const token = res.data[0];
-                    route = `/address/${token.ChainID}/${token.Address}`;
-                } else {
-                    setError("No results found");
-                    setIsSearching(false);
-                    return;
+                if (res) {
+                    if (res.type === 'block') {
+                        route = `/block/${chain}/${res.data.Hash}`;
+                    } else if (res.type === 'tx') {
+                        route = `/tx/${chain}/${res.data.TxHash}`;
+                    } else if (res.type === 'address') {
+                        route = `/address/${chain}/${res.data.Address}`;
+                    } else if (res.type === 'token_list' && Array.isArray(res.data) && res.data.length > 0) {
+                        const token = res.data[0];
+                        route = `/address/${token.ChainID}/${token.Address}`;
+                    } else {
+                        // If backend returns nothing but looks like a hash, default to TX (more common) API knows best though
+                        // Check if it looks like a hash to fallback
+                        if (isEthHash || term.length >= 64) {
+                            route = `/tx/${chain}/${term}`;
+                        } else {
+                            setError("No results found");
+                            setIsSearching(false);
+                            return;
+                        }
+                    }
                 }
             } catch (err) {
                 console.error("Search failed", err);
-                route = `/tx/${chain}/${term}`; // Fallback to raw path
+                // Fallback for hashes
+                if (isEthHash || term.length >= 64) {
+                    route = `/tx/${chain}/${term}`;
+                } else {
+                    setError("Search failed");
+                    setIsSearching(false);
+                    return;
+                }
             }
         }
 

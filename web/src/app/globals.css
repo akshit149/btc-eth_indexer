@@ -251,50 +251,52 @@
   }
 
   .dark {
-    /* Deep Premium Dark - 2026 Fintech */
-    --background: 220 20% 4%;
-    --foreground: 0 0% 95%;
+    /* ========== 2026 Liquid Glass Dark Theme ========== */
+    /* Base - Ultra deep for contrast */
+    --background: 225 25% 3%;
+    --foreground: 0 0% 96%;
 
-    /* Cards - Slightly elevated */
-    --card: 220 18% 7%;
-    --card-foreground: 0 0% 95%;
+    /* Cards - Glass layers with subtle elevation */
+    --card: 225 22% 6%;
+    --card-foreground: 0 0% 96%;
 
-    /* Popover */
-    --popover: 220 20% 6%;
-    --popover-foreground: 0 0% 95%;
+    /* Popover - Slightly elevated glass */
+    --popover: 225 22% 5%;
+    --popover-foreground: 0 0% 96%;
 
-    /* Primary - High contrast */
+    /* Primary - Clean white for CTAs */
     --primary: 0 0% 98%;
-    --primary-foreground: 220 20% 8%;
+    --primary-foreground: 225 25% 5%;
 
-    /* Secondary - Subtle elevation */
-    --secondary: 220 15% 13%;
-    --secondary-foreground: 0 0% 95%;
+    /* Secondary - Subtle glass elevation */
+    --secondary: 225 18% 10%;
+    --secondary-foreground: 0 0% 96%;
 
-    /* Muted - Subdued content */
-    --muted: 220 15% 13%;
-    --muted-foreground: 220 10% 55%;
+    /* Muted - Subdued content areas */
+    --muted: 225 18% 10%;
+    --muted-foreground: 225 15% 50%;
 
-    /* Accent */
-    --accent: 220 15% 15%;
-    --accent-foreground: 0 0% 95%;
+    /* Accent - For highlights */
+    --accent: 225 18% 12%;
+    --accent-foreground: 0 0% 96%;
 
     /* Destructive */
-    --destructive: 0 72% 45%;
+    --destructive: 0 72% 50%;
     --destructive-foreground: 0 0% 98%;
 
-    /* Borders - Very subtle */
-    --border: 220 12% 18%;
-    --input: 220 12% 15%;
-    --ring: 220 70% 60%;
+    /* Borders - Very subtle glass edges */
+    --border: 225 15% 15%;
+    --input: 225 15% 12%;
+    --ring: 225 75% 60%;
 
-    --radius: 0.625rem;
+    --radius: 0.75rem;
 
-    /* Brand Colors - Optimized for dark */
-    --btc-primary: 28 95% 52%;
-    --eth-primary: 224 80% 62%;
-    --success: 145 70% 48%;
-    --warning: 40 95% 55%;
+    /* ========== Brand Colors - Vibrant for dark ========== */
+    --btc-primary: 28 100% 55%;
+    --eth-primary: 224 85% 65%;
+    --success: 145 75% 50%;
+    --warning: 40 100% 55%;
+    --info: 195 100% 50%;
   }
 }
 

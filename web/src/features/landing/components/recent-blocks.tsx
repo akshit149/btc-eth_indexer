@@ -106,7 +106,7 @@ export function RecentBlocks() {
     }
 
     return (
-        <Card className="glass-card col-span-4 lg:col-span-3 overflow-hidden">
+        <Card className="glass-card overflow-hidden">
             <CardHeader className="border-b border-border/30 pb-4 px-5">
                 <div className="flex items-center gap-2.5">
                     <div className="h-8 w-8 rounded-lg bg-primary/5 border border-border/50 flex items-center justify-center">

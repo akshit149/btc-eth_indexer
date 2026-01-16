@@ -21,7 +21,7 @@ chains:
     poll_interval: 30s
     batch_size: 5
     confirmation_depth: 6
-    start_height: 932480
+    start_height: 932550
     max_reorg_depth: 100
 
   eth:
@@ -30,7 +30,7 @@ chains:
     poll_interval: 12s
     batch_size: 5
     confirmation_depth: 12
-    start_height: 24246190
+    start_height: 24249515
     max_reorg_depth: 100
     log_batch_size: 500
     use_finalized_tag: true
