@@ -1,0 +1,46 @@
+database:
+  host: ${DB_HOST}
+  port: ${DB_PORT}
+  name: ${DB_NAME}
+  user: ${DB_USER}
+  password: ${DB_PASSWORD}
+  max_connections: 10
+  ssl_mode: disable
+
+redis:
+  addr: ${REDIS_ADDR}
+  password: ""
+  db: 0
+  key_prefix: "indexer:"
+  cache_ttl: 5m
+
+chains:
+  btc:
+    enabled: true
+    rpc_url: ${BTC_RPC_URL}
+    poll_interval: 30s
+    batch_size: 5
+    confirmation_depth: 6
+    start_height: 932550
+    max_reorg_depth: 100
+
+  eth:
+    enabled: true
+    rpc_url: ${ETH_RPC_URL}
+    poll_interval: 12s
+    batch_size: 5
+    confirmation_depth: 12
+    start_height: 24249515
+    max_reorg_depth: 100
+    log_batch_size: 500
+    use_finalized_tag: true
+    contracts: []
+    enable_mempool: true
+
+server:
+  health_port: 8080
+  metrics_port: 9191
+
+logging:
+  level: info
+  format: json

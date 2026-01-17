@@ -1,0 +1,31 @@
+server:
+  port: ${SERVER_PORT}
+  read_timeout: 5s
+  write_timeout: 10s
+  shutdown_timeout: 5s
+  enable_mempool: true
+
+database:
+  host: ${DB_HOST}
+  port: ${DB_PORT}
+  name: ${DB_NAME}
+  user: ${DB_USER}
+  password: ${DB_PASSWORD}
+  max_connections: 10
+  ssl_mode: disable
+
+redis:
+  addr: ${REDIS_ADDR}
+  password: ""
+  db: 0
+  key_prefix: "indexer:"
+  cache_ttl: 5m
+  short_cache_ttl: 1m
+
+auth:
+  rate_limit_requests: 1000
+  rate_limit_window: 1m
+
+logging:
+  level: info
+  format: json

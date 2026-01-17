@@ -1,151 +1,178 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Transaction } from "@/types";
-import { HashText } from "@/components/shared/ui-text/hash-text";
-import { ArrowRight, FileText, Download, ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { ArrowRight, Download, ArrowDownLeft, ArrowUpRight, ArrowUpDown } from "lucide-react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
 import { useCsvExport } from "@/hooks/use-csv-export";
-import { ValueDisplay } from "@/components/shared/value-display";
-import { AddressLink } from "@/components/shared/address-link";
-import { StatusBadge } from "@/components/shared/badges/status-badge";
+import { cn } from "@/lib/utils";
+
+function formatValue(value: string, chain: "btc" | "eth"): string {
+  if (!value || value === "0") return "0";
+  try {
+    if (chain === "eth") {
+      const wei = BigInt(value);
+      const eth = Number(wei) / 1e18;
+      return eth < 0.0001 ? "<0.0001" : eth.toFixed(4);
+    } else {
+      const sats = parseInt(value);
+      const btc = sats / 1e8;
+      return btc < 0.0001 ? "<0.0001" : btc.toFixed(4);
+    }
+  } catch {
+    return "0";
+  }
+}
 
 interface AddressTransactionListProps {
-    transactions: Transaction[];
-    chain: "btc" | "eth";
-    address: string;
+  transactions: Transaction[];
+  chain: "btc" | "eth";
+  address: string;
 }
 
 export function AddressTransactionList({ transactions, chain, address }: AddressTransactionListProps) {
-    const [filter, setFilter] = useState<"all" | "in" | "out">("all");
+  const [filter, setFilter] = useState<"all" | "in" | "out">("all");
+  const currency = chain === "eth" ? "ETH" : "BTC";
 
-    const filtered = transactions.filter(tx => {
-        const isSender = tx.FromAddr?.toLowerCase() === address.toLowerCase();
-        if (filter === "in") return !isSender;
-        if (filter === "out") return isSender;
-        return true;
-    });
+  const filtered = transactions.filter(tx => {
+    const isSender = tx.FromAddr?.toLowerCase() === address.toLowerCase();
+    if (filter === "in") return !isSender;
+    if (filter === "out") return isSender;
+    return true;
+  });
 
-    const handleExport = useCsvExport(filtered, `address-txs-${chain}-${address}`);
+  const handleExport = useCsvExport(filtered, `address-txs-${chain}-${address}`);
 
-    // Calculate summary
-    const inCount = transactions.filter(tx => tx.ToAddr?.toLowerCase() === address.toLowerCase()).length;
-    const outCount = transactions.filter(tx => tx.FromAddr?.toLowerCase() === address.toLowerCase()).length;
+  const inCount = transactions.filter(tx => tx.ToAddr?.toLowerCase() === address.toLowerCase()).length;
+  const outCount = transactions.filter(tx => tx.FromAddr?.toLowerCase() === address.toLowerCase()).length;
 
-    return (
-        <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <div className="flex items-center gap-4">
-                    <CardTitle>Transaction History</CardTitle>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                            <ArrowDownLeft className="h-3 w-3 text-green-500" />
-                            {inCount} in
-                        </span>
-                        <span className="flex items-center gap-1">
-                            <ArrowUpRight className="h-3 w-3 text-orange-500" />
-                            {outCount} out
-                        </span>
-                    </div>
+  return (
+    <div className="space-y-4">
+      {/* Filter Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-2 p-1 rounded-xl bg-white/[0.03] border border-white/[0.06] w-fit">
+          <button
+            onClick={() => setFilter("all")}
+            className={cn(
+              "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+              filter === "all"
+                ? "bg-white/[0.08] text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            All ({transactions.length})
+          </button>
+          <button
+            onClick={() => setFilter("in")}
+            className={cn(
+              "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5",
+              filter === "in"
+                ? "bg-emerald-500/15 text-emerald-500"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <ArrowDownLeft className="w-3.5 h-3.5" />
+            In ({inCount})
+          </button>
+          <button
+            onClick={() => setFilter("out")}
+            className={cn(
+              "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5",
+              filter === "out"
+                ? "bg-red-500/15 text-red-500"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <ArrowUpRight className="w-3.5 h-3.5" />
+            Out ({outCount})
+          </button>
+        </div>
+
+        <button
+          onClick={handleExport}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] text-sm text-muted-foreground hover:text-foreground transition-all"
+        >
+          <Download className="w-4 h-4" />
+          Export CSV
+        </button>
+      </div>
+
+      {/* Transactions List */}
+      {filtered.length === 0 ? (
+        <div className="text-center py-16 text-muted-foreground">
+          <ArrowUpDown className="w-10 h-10 mx-auto mb-3 opacity-30" />
+          <p>No transactions found matching this filter.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map((tx) => {
+            const isSender = tx.FromAddr?.toLowerCase() === address.toLowerCase();
+            const counterparty = isSender ? tx.ToAddr : tx.FromAddr;
+
+            return (
+              <Link
+                key={tx.TxHash}
+                href={`/tx/${chain}/${tx.TxHash}`}
+                className="group flex items-center gap-4 p-4 rounded-2xl bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.04] hover:border-white/[0.08] transition-all duration-300"
+              >
+                {/* Type Indicator */}
+                <div className={cn(
+                  "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
+                  isSender ? "bg-red-500/10" : "bg-emerald-500/10"
+                )}>
+                  {isSender ? (
+                    <ArrowUpRight className="w-5 h-5 text-red-500" />
+                  ) : (
+                    <ArrowDownLeft className="w-5 h-5 text-emerald-500" />
+                  )}
                 </div>
-                <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" onClick={handleExport} title="Export CSV">
-                        <Download className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                    <Tabs value={filter} onValueChange={(v) => setFilter(v as "all" | "in" | "out")} className="w-[280px]">
-                        <TabsList className="grid w-full grid-cols-3">
-                            <TabsTrigger value="all">All ({transactions.length})</TabsTrigger>
-                            <TabsTrigger value="in" className="data-[state=active]:text-green-500">In</TabsTrigger>
-                            <TabsTrigger value="out" className="data-[state=active]:text-orange-500">Out</TabsTrigger>
-                        </TabsList>
-                    </Tabs>
-                </div>
-            </CardHeader>
-            <CardContent>
-                {filtered.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                        No transactions found matching this filter.
-                    </div>
-                ) : (
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-[60px]">Type</TableHead>
-                                <TableHead>Tx Hash</TableHead>
-                                <TableHead>Counterparty</TableHead>
-                                <TableHead className="text-right">Value</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead></TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filtered.map((tx) => {
-                                const isSender = tx.FromAddr?.toLowerCase() === address.toLowerCase();
-                                const counterparty = isSender ? tx.ToAddr : tx.FromAddr;
 
-                                return (
-                                    <TableRow key={tx.TxHash} className="hover:bg-muted/50 transition-colors">
-                                        <TableCell>
-                                            <Badge
-                                                variant="outline"
-                                                className={isSender
-                                                    ? "text-orange-500 border-orange-500/50 bg-orange-500/10"
-                                                    : "text-green-500 border-green-500/50 bg-green-500/10"
-                                                }
-                                            >
-                                                {isSender ? (
-                                                    <><ArrowUpRight className="h-3 w-3 mr-1" />OUT</>
-                                                ) : (
-                                                    <><ArrowDownLeft className="h-3 w-3 mr-1" />IN</>
-                                                )}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Link
-                                                href={`/tx/${chain}/${tx.TxHash}`}
-                                                className="font-mono text-xs hover:underline text-primary flex items-center gap-2"
-                                            >
-                                                <FileText className="h-3 w-3 text-muted-foreground" />
-                                                <HashText hash={tx.TxHash} startChars={8} endChars={4} />
-                                            </Link>
-                                        </TableCell>
-                                        <TableCell>
-                                            {counterparty ? (
-                                                <AddressLink
-                                                    address={counterparty}
-                                                    chain={chain}
-                                                    shorten={true}
-                                                    showLabel={true}
-                                                />
-                                            ) : (
-                                                <span className="text-xs text-muted-foreground italic">Contract Creation</span>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <ValueDisplay value={tx.Value} chain={chain} showUsd={false} size="sm" />
-                                        </TableCell>
-                                        <TableCell>
-                                            <StatusBadge status={tx.Status} />
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <Link href={`/tx/${chain}/${tx.TxHash}`}>
-                                                <Button variant="ghost" size="sm">
-                                                    <ArrowRight className="h-4 w-4" />
-                                                </Button>
-                                            </Link>
-                                        </TableCell>
-                                    </TableRow>
-                                )
-                            })}
-                        </TableBody>
-                    </Table>
-                )}
-            </CardContent>
-        </Card>
-    );
+                {/* Transaction Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-mono text-sm text-foreground/90">
+                      {tx.TxHash.slice(0, 10)}...{tx.TxHash.slice(-6)}
+                    </span>
+                    {tx.Status === "finalized" && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    )}
+                    {tx.Status === "orphaned" && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {isSender ? "To: " : "From: "}
+                    {counterparty ? (
+                      <span className="font-mono">{counterparty.slice(0, 8)}...{counterparty.slice(-6)}</span>
+                    ) : (
+                      <span className="text-blue-400">Contract Creation</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Value */}
+                <div className="text-right shrink-0">
+                  <div className={cn(
+                    "font-mono text-sm font-semibold",
+                    isSender ? "text-red-500" : "text-emerald-500"
+                  )}>
+                    {isSender ? "-" : "+"}{formatValue(tx.Value, chain)} {currency}
+                  </div>
+                  <div className={cn(
+                    "text-[10px] uppercase tracking-wider font-semibold",
+                    isSender ? "text-red-500/60" : "text-emerald-500/60"
+                  )}>
+                    {isSender ? "OUT" : "IN"}
+                  </div>
+                </div>
+
+                {/* Arrow */}
+                <ArrowRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors shrink-0" />
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }

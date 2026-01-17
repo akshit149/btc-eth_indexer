@@ -72,3 +72,9 @@ __debug_bin*
 
 # Compiled Go binaries
 /cmd/*/main
+
+# Backups
+docker-compose.backup.yaml
+
+# Sensitive Data
+.orchids/

@@ -17,9 +17,9 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "ChainScope Explorer | Multi-Chain Blockchain Analytics",
-  description: "Real-time blockchain explorer for Bitcoin and Ethereum. Track blocks, transactions, and addresses with a premium fintech experience.",
-  keywords: ["blockchain", "explorer", "bitcoin", "ethereum", "crypto", "analytics"],
+  title: "ChainScope | Multi-Chain Blockchain Explorer",
+  description: "Explore Bitcoin and Ethereum with real-time analytics, deep transaction insights, and enterprise-grade performance. A next-generation blockchain explorer.",
+  keywords: ["blockchain", "explorer", "bitcoin", "ethereum", "crypto", "analytics", "transactions", "blocks"],
 };
 
 export default function RootLayout({
@@ -36,11 +36,7 @@ export default function RootLayout({
           <div className="flex min-h-screen flex-col overflow-x-hidden bg-background">
             <Navbar />
             <main className="flex-1 relative">
-              {/* Subtle gradient background */}
-              <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-muted/20 pointer-events-none" />
-              <div className="relative z-10">
-                {children}
-              </div>
+              {children}
             </main>
             <Footer />
           </div>
@@ -49,4 +45,3 @@ export default function RootLayout({
     </html>
   );
 }
-
